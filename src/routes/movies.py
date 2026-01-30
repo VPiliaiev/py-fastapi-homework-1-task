@@ -1,5 +1,5 @@
 import math
-
+from fastapi import Request
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +17,7 @@ router = APIRouter(
 
 @router.get("/", response_model=MovieListResponseSchema)
 async def read_movies(
+        request: Request,
         db: AsyncSession = Depends(get_db),
         page: int = Query(1, ge=1),
         per_page: int = Query(10, ge=1, le=20)
@@ -32,8 +33,9 @@ async def read_movies(
     stmt = select(MovieModel).limit(per_page).offset(offset)
     result = await db.execute(stmt)
     items = result.scalars().all()
-    prev_page = f"/theater/movies/?page={page - 1}&per_page={per_page}" if page > 1 else None
-    next_page = f"/theater/movies/?page={page + 1}&per_page={per_page}" if page < total_pages else None
+    base_url = request.url.path
+    prev_page = f"{base_url}?page={page - 1}&per_page={per_page}" if page > 1 else None
+    next_page = f"{base_url}?page={page + 1}&per_page={per_page}" if page < total_pages else None
     movies = [
         MovieDetailResponseSchema.model_validate(movie, from_attributes=True)
         for movie in items
